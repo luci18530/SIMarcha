@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIMarcha — Simulador de Carro Manual</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════
+       BARRA SUPERIOR
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="top-bar">
+    <h1>🚗 SIMarcha — Simulador de Carro Manual</h1>
+
+    <span id="engine-status" class="engine-status off">⭕ MOTOR DESLIGADO</span>
+
+    <span id="gear-suggestion"></span>
+
+    <button id="btn-ignition" class="btn primary">⚡ Ligar / Religar</button>
+    <button id="btn-reset"    class="btn">🔄 Reset</button>
+    <button id="btn-tutorial" class="btn">📖 Tutorial</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       ÁREA PRINCIPAL (3 colunas)
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="main-area">
+
+    <!-- ── Painel dos pedais (esquerda) ───────────────────── -->
+    <div id="pedals-panel">
+      <h3>Pedais</h3>
+
+      <!-- EMBREAGEM -->
+      <div class="pedal-group">
+        <div class="pedal-label">
+          <strong>Embreagem</strong><br />
+          <span>Shift / C</span>
+        </div>
+        <div class="pedal-track" id="pedal-clutch">
+          <!-- Marcadores da zona de fricção -->
+          <div class="friction-marker" id="marker-friction-end">
+            <span class="friction-label">↑ zona</span>
+          </div>
+          <div class="friction-marker" id="marker-friction-point">
+            <span class="friction-label">★ ponto</span>
+          </div>
+          <div class="friction-marker" id="marker-friction-start">
+            <span class="friction-label">↓ zona</span>
+          </div>
+          <!-- Barra de pressão -->
+          <div class="pedal-bar" id="bar-clutch"></div>
+        </div>
+        <div class="pedal-value" id="val-clutch">0%</div>
+      </div>
+
+      <!-- FREIO -->
+      <div class="pedal-group">
+        <div class="pedal-label">
+          <strong>Freio</strong><br />
+          <span>S / ↓</span>
+        </div>
+        <div class="pedal-track" id="pedal-brake">
+          <div class="pedal-bar" id="bar-brake"></div>
+        </div>
+        <div class="pedal-value" id="val-brake">0%</div>
+      </div>
+
+      <!-- ACELERADOR -->
+      <div class="pedal-group">
+        <div class="pedal-label">
+          <strong>Acelerador</strong><br />
+          <span>W / ↑</span>
+        </div>
+        <div class="pedal-track" id="pedal-accel">
+          <div class="pedal-bar" id="bar-accel"></div>
+        </div>
+        <div class="pedal-value" id="val-accel">0%</div>
+      </div>
+    </div>
+
+    <!-- ── Dashboard central ──────────────────────────────── -->
+    <div id="dashboard">
+
+      <!-- Gauge de RPM -->
+      <div id="rpm-section">
+        <canvas id="rpm-canvas" width="300" height="170"></canvas>
+        <div id="rpm-value">0 RPM</div>
+      </div>
+
+      <!-- Velocidade e marcha atual -->
+      <div id="speed-gear-row">
+        <div class="gauge-box">
+          <div class="gauge-big" id="speed-value">0</div>
+          <div class="gauge-unit">km/h</div>
+        </div>
+
+        <div class="gauge-box">
+          <div class="gauge-big" id="gear-value">N</div>
+          <div class="gauge-unit">Marcha</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Câmbio (direita) ───────────────────────────────── -->
+    <div id="shifter-panel">
+      <h3>Câmbio</h3>
+
+      <!--
+        Grade H clássica:
+          1   |   2
+          ─────────
+          3   |   4
+          ─────────
+          5   |   N
+              |   R
+      -->
+      <div id="gear-grid">
+        <button class="gear-btn" data-gear="1">1</button>
+        <div class="gear-divider-h"></div>
+        <button class="gear-btn" data-gear="2">2</button>
+
+        <button class="gear-btn" data-gear="3">3</button>
+        <div class="gear-divider-h"></div>
+        <button class="gear-btn" data-gear="4">4</button>
+
+        <button class="gear-btn" data-gear="5">5</button>
+        <div class="gear-divider-h"></div>
+        <button class="gear-btn neutral" data-gear="0">N</button>
+
+        <!-- Ré ocupa a linha inteira -->
+        <button class="gear-btn reverse" data-gear="-1"
+                style="grid-column: 1 / -1; justify-self: center;">R</button>
+      </div>
+
+      <div class="keyboard-hint">Teclado: 1–5 · N · R</div>
+    </div>
+
+  </div><!-- #main-area -->
+
+  <!-- ═══════════════════════════════════════════════════════
+       FEEDBACK — mensagem principal + desempenho
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="feedback-panel">
+    <div id="feedback-message">Ligue o motor para começar!</div>
+    <div id="perf-indicator"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MODO TREINO
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="training-panel">
+    <h3>🎓 Modo Treino</h3>
+
+    <div id="exercise-buttons">
+      <button class="exercise-btn active" data-exercise="0">🚗 Livre</button>
+      <button class="exercise-btn" data-exercise="1">1 · Ponto da Embreagem</button>
+      <button class="exercise-btn" data-exercise="2">2 · Arrancar sem Estancar</button>
+      <button class="exercise-btn" data-exercise="3">3 · Trocar 1ª → 2ª</button>
+      <button class="exercise-btn" data-exercise="4">4 · Parar e Sair</button>
+    </div>
+
+    <div id="exercise-info">
+      <div>
+        <div id="exercise-title"></div>
+        <div id="exercise-desc"></div>
+      </div>
+      <div id="exercise-result" class="result-info"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       HISTÓRICO DE MENSAGENS
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="history-panel">
+    <h4>Histórico</h4>
+    <ul id="history-list"></ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       TUTORIAL OVERLAY
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="tutorial-overlay" class="hidden">
+    <div id="tutorial-box">
+      <h2>📖 Como usar o SIMarcha</h2>
+
+      <p>
+        Este simulador ensina a dirigir um carro com câmbio manual, com foco na
+        coordenação entre <strong>embreagem, acelerador e troca de marcha</strong>.
+      </p>
+
+      <h3 style="color:var(--accent);font-size:0.95rem;margin-top:4px;">Controles de teclado</h3>
+      <ul>
+        <li><strong>Shift / C</strong> — Embreagem (segure para pisar)</li>
+        <li><strong>W / ↑</strong> — Acelerador</li>
+        <li><strong>S / ↓</strong> — Freio</li>
+        <li><strong>1 – 5</strong> — Engatar marcha correspondente</li>
+        <li><strong>N</strong> — Neutro</li>
+        <li><strong>R</strong> — Ré</li>
+        <li><strong>Enter / I</strong> — Ligar / Desligar motor</li>
+        <li><strong>F5</strong> — Reiniciar</li>
+      </ul>
+
+      <h3 style="color:var(--accent);font-size:0.95rem;margin-top:4px;">Como arrancar</h3>
+      <ol>
+        <li>Ligue o motor (<strong>Enter</strong> ou botão "Ligar").</li>
+        <li>Pise na embreagem (<strong>Shift</strong>).</li>
+        <li>Engate a <strong>1ª marcha</strong> (tecla <strong>1</strong>).</li>
+        <li>Solte o freio e dê um pouco de gás (<strong>W</strong> — cerca de 30%).</li>
+        <li>Solte a embreagem <strong>devagar</strong> até sentir o ponto de fricção
+            (a barra amarela na coluna da embreagem).</li>
+        <li>Continue soltando suavemente enquanto mantém o gás.</li>
+      </ol>
+
+      <h3 style="color:var(--accent);font-size:0.95rem;margin-top:4px;">Zona de fricção</h3>
+      <p>
+        Os marcadores na barra da embreagem indicam:
+        <strong>↓ zona</strong> e <strong>↑ zona</strong> delimitam a faixa de atrito.
+        <strong>★ ponto</strong> é onde o carro começa a se mover.
+        Controlar esta zona é o segredo de uma boa arrancada!
+      </p>
+
+      <button id="btn-close-tutorial" class="btn primary" style="align-self:flex-end;">
+        Entendido! Vamos dirigir 🚗
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCRIPTS (ordem importa: simulation → controls → feedback → training → ui → main)
+  ═══════════════════════════════════════════════════════════ -->
+  <script src="js/simulation.js"></script>
+  <script src="js/controls.js"></script>
+  <script src="js/feedback.js"></script>
+  <script src="js/training.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+
+</body>
+</html>

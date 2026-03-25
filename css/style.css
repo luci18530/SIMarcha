@@ -1,0 +1,526 @@
+/* ============================================================
+   style.css — Simulador de Carro Manual (SIMarcha)
+   Tema escuro, estilo painel de instrumento automotivo
+   ============================================================ */
+
+/* ── Reset e base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #0d1117;
+  --surface:     #161b22;
+  --surface2:    #21262d;
+  --border:      #30363d;
+  --text:        #c9d1d9;
+  --text-dim:    #6e7681;
+  --accent:      #58a6ff;
+  --green:       #3fb950;
+  --yellow:      #d29922;
+  --red:         #f85149;
+  --orange:      #db6d28;
+  --purple:      #a371f7;
+  --clutch-col:  #63b3ed;
+  --accel-col:   #68d391;
+  --brake-col:   #fc8181;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  overflow-x: hidden;
+}
+
+/* ── Layout geral ─────────────────────────────────────────── */
+body {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto auto;
+  min-height: 100vh;
+  gap: 0;
+}
+
+/* ── Barra superior ───────────────────────────────────────── */
+#top-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+#top-bar h1 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+  flex: 1;
+  white-space: nowrap;
+}
+
+.engine-status {
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 2px solid;
+  white-space: nowrap;
+}
+.engine-status.off    { color: var(--text-dim); border-color: var(--text-dim); }
+.engine-status.running { color: var(--green);  border-color: var(--green); }
+.engine-status.stalled { color: var(--red);   border-color: var(--red); animation: pulse 0.6s infinite; }
+
+#gear-suggestion {
+  font-size: 0.8rem;
+  min-width: 140px;
+}
+
+.btn {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn:hover { background: #2d333b; border-color: var(--accent); }
+.btn.primary { background: #1f4f8e; border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: #2461aa; }
+
+/* ── Área principal (3 colunas) ───────────────────────────── */
+#main-area {
+  display: grid;
+  grid-template-columns: 220px 1fr 200px;
+  gap: 12px;
+  padding: 12px;
+  align-items: start;
+}
+
+/* ── Painel dos pedais ────────────────────────────────────── */
+#pedals-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#pedals-panel h3 {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+
+/* Contêiner de um pedal */
+.pedal-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.pedal-label {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.4;
+}
+.pedal-label strong { color: var(--text); font-size: 0.85rem; }
+
+/* Track vertical do pedal */
+.pedal-track {
+  position: relative;
+  width: 46px;
+  height: 130px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: visible; /* para os markers ficarem visíveis */
+  cursor: ns-resize;
+}
+
+/* Barra de preenchimento (cresce de baixo para cima) */
+.pedal-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 0%;
+  border-radius: 4px;
+  transition: height 0.05s linear, background 0.15s;
+}
+
+#bar-clutch { background: linear-gradient(to top, var(--clutch-col), #2b6cb0); }
+#bar-accel  { background: linear-gradient(to top, var(--accel-col), #276749); }
+#bar-brake  { background: linear-gradient(to top, var(--brake-col), #9b2c2c); }
+
+/* Valor numérico do pedal */
+.pedal-value {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+/* ── Marcadores de zona de fricção ───────────────────────── */
+.friction-marker {
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  height: 2px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+#marker-friction-start { background: #38a169; }
+#marker-friction-end   { background: #276749; }
+
+#marker-friction-point {
+  height: 3px;
+  background: #f6e05e;
+  left: -12px;
+  right: -12px;
+  transition: background 0.1s;
+}
+#marker-friction-point.active {
+  background: #ed8936;
+  box-shadow: 0 0 8px #ed8936;
+}
+
+.friction-label {
+  position: absolute;
+  left: calc(100% + 14px);
+  font-size: 0.65rem;
+  color: #f6e05e;
+  white-space: nowrap;
+  transform: translateY(-50%);
+  top: 0;
+}
+
+/* ── Painel central — Dashboard ───────────────────────────── */
+#dashboard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Gauge RPM */
+#rpm-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+#rpm-canvas {
+  display: block;
+}
+
+#rpm-value {
+  font-family: monospace;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+/* Velocidade e marcha */
+#speed-gear-row {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+}
+
+.gauge-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.gauge-big {
+  font-family: monospace;
+  font-size: 3.2rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+
+.gauge-unit {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+#gear-value {
+  font-family: monospace;
+  font-size: 3.2rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ── Câmbio (grade H) ─────────────────────────────────────── */
+#shifter-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#shifter-panel h3 {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Grade do câmbio */
+#gear-grid {
+  display: grid;
+  grid-template-columns: 1fr 4px 1fr;
+  grid-template-rows: repeat(4, 1fr);
+  gap: 6px;
+  align-items: center;
+}
+
+.gear-divider-h {
+  background: var(--border);
+  height: 100%;
+  align-self: stretch;
+}
+
+/* Posição da marcha (botão) */
+.gear-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  justify-self: center;
+}
+.gear-btn:hover { background: #2d333b; border-color: var(--accent); }
+.gear-btn.active-gear {
+  background: #1a3f6f;
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 10px rgba(88, 166, 255, 0.4);
+}
+
+.gear-btn.neutral { color: var(--yellow); }
+.gear-btn.neutral.active-gear { background: #3d2f00; border-color: var(--yellow); color: var(--yellow); }
+.gear-btn.reverse { color: var(--red); }
+
+/* Dicas de teclado */
+.keyboard-hint {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+/* ── Feedback (mensagem principal + indicador) ─────────────── */
+#feedback-panel {
+  padding: 10px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+#feedback-message {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  color: var(--accent);
+  min-width: 200px;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+#perf-indicator {
+  font-size: 0.85rem;
+  font-weight: 700;
+  min-width: 160px;
+}
+
+/* ── Modo Treino ──────────────────────────────────────────── */
+#training-panel {
+  padding: 12px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#training-panel h3 {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+#exercise-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.exercise-btn {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.exercise-btn:hover { background: #2d333b; border-color: var(--accent); }
+.exercise-btn.active { background: #1a3f6f; border-color: var(--accent); color: var(--accent); font-weight: 700; }
+
+#exercise-info {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+#exercise-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+#exercise-desc {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  max-width: 600px;
+  line-height: 1.5;
+}
+#exercise-desc strong { color: var(--text); }
+#exercise-desc em { color: var(--yellow); }
+
+#exercise-result {
+  font-size: 0.88rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+.result-success { color: var(--green); }
+.result-fail    { color: var(--red); }
+.result-info    { color: var(--accent); }
+
+/* ── Histórico de mensagens ───────────────────────────────── */
+#history-panel {
+  padding: 10px 16px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+#history-panel h4 {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+#history-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+#history-list li {
+  font-size: 0.78rem;
+  font-family: monospace;
+  opacity: 0.85;
+}
+
+/* ── Tutorial overlay ─────────────────────────────────────── */
+#tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+#tutorial-overlay.hidden { display: none; }
+
+#tutorial-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  max-width: 560px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#tutorial-box h2 {
+  color: var(--accent);
+  font-size: 1.2rem;
+}
+
+#tutorial-box p, #tutorial-box li {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+#tutorial-box ul { padding-left: 20px; }
+#tutorial-box strong { color: var(--text); }
+
+/* ── Animações ────────────────────────────────────────────── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* ── Responsividade básica ────────────────────────────────── */
+@media (max-width: 700px) {
+  #main-area {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  #pedals-panel {
+    flex-direction: row;
+    justify-content: space-around;
+    flex-wrap: wrap;
+  }
+
+  .gauge-big { font-size: 2.2rem; }
+}
