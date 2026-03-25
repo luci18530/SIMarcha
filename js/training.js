@@ -134,7 +134,7 @@ const training = (() => {
     if (_currentExercise === 0) return;
 
     // Exercício 1: manter no ponto de fricção por 2 s sem estancar
-    if (_currentExercise === 1 && _frictionHit && !_stallsInExercise) {
+    if (_currentExercise === 1 && _frictionHit && _stallsInExercise === 0) {
       if (state.inFrictionZone && state.atFrictionPoint && state.speed > 0.2) {
         _phase += dt;
         if (_phase >= 2.0) {

@@ -82,12 +82,12 @@ const ui = (() => {
     _ctx.lineWidth = 14;
     _ctx.stroke();
 
-    // ── Faixas coloridas ──
+    // ── Faixas coloridas (sem sobreposição: dark → green → red) ──
     const rpmMax = SIM.MAX_RPM;
     const zones = [
-      { from: 0,               to: SIM.IDLE_RPM * 1.2, color: '#4a5568' },
-      { from: SIM.IDLE_RPM,    to: SIM.REDLINE_RPM,    color: '#48bb78' },
-      { from: SIM.REDLINE_RPM, to: SIM.MAX_RPM,         color: '#fc8181' },
+      { from: 0,               to: SIM.IDLE_RPM,     color: '#4a5568' }, // marcha lenta
+      { from: SIM.IDLE_RPM,    to: SIM.REDLINE_RPM,  color: '#48bb78' }, // faixa verde
+      { from: SIM.REDLINE_RPM, to: SIM.MAX_RPM,       color: '#fc8181' }, // zona vermelha
     ];
     zones.forEach(({ from, to, color }) => {
       const a1 = startAngle + (from / rpmMax) * totalAngle;
@@ -264,6 +264,10 @@ const ui = (() => {
   // ─────────────────────────────────────────────────────────
   //  INDICADOR DE DESEMPENHO DA ARRANCADA
   // ─────────────────────────────────────────────────────────
+  // Limiares de aceleração para classificar a qualidade da saída
+  const SMOOTH_START_ACCEL_MIN = 0.25;     // acima → saída suave
+  const ACCEPTABLE_START_ACCEL_MIN = 0.08; // acima → saída razoável
+
   function _updatePerfIndicator() {
     if (!state.engineRunning) return;
 
@@ -273,11 +277,11 @@ const ui = (() => {
 
     if (state.stalled) {
       perf = 'estancou';
-    } else if (state.inFrictionZone && speed > 1 && speed < 20) {
+    } else if (state.inFrictionZone && speed > SIM.GOOD_START_SPEED_MIN && speed < SIM.GOOD_START_SPEED_MAX) {
       // Avaliar a qualidade da saída baseada na aceleração usada
-      if (accel > 0.25) {
+      if (accel > SMOOTH_START_ACCEL_MIN) {
         perf = 'suave';
-      } else if (accel > 0.08) {
+      } else if (accel > ACCEPTABLE_START_ACCEL_MIN) {
         perf = 'razoavel';
       } else {
         perf = 'ruim';

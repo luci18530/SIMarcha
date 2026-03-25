@@ -44,6 +44,29 @@ const SIM = {
   // Resposta do motor ao acelerador
   RPM_RESPONSE_FREE: 9,    // Quão rápido o RPM sobe (motor livre)
   RPM_RESPONSE_COUPLED: 8, // Quão rápido o RPM se ajusta (motor acoplado)
+
+  // Limiares para detecção de abuso / qualidade de arrancada
+  CLUTCH_FAST_RELEASE: 1.8,   // Velocidade de soltura considerada brusca (pos/s)
+  CLUTCH_ABUSE_SPEED: 1.5,    // Velocidade de soltura para aviso de abuso (pos/s)
+  CLUTCH_ABUSE_MIN_ENG: 0.25, // Engagement mínimo para o aviso ser relevante
+  LOW_ACCEL_THRESHOLD: 0.15,  // Acelerador abaixo disto é considerado "insuficiente"
+  ACCEL_RPM_BOOST: 400,       // Boost de RPM do acelerador no modo acoplado
+
+  // Efetividade do motor (curva de torque simplificada)
+  IDLE_OFFSET_FACTOR: 0.4,    // Fator do RPM idle na curva de torque
+  TORQUE_RPM_RANGE: 2000,     // Faixa de RPM para atingir efetividade máxima
+
+  // Condições de estancamento ao parar
+  STALL_STOP_SPEED: 1.0,      // Velocidade abaixo da qual o carro pode estancar ao parar (km/h)
+  BRAKE_STALL_THRESHOLD: 0.3, // Pressão de freio que inicia a verificação de estancamento
+  CLUTCH_STALL_FACTOR: 0.8,   // Clutch acima de END * FACTOR = embreagem não pressionada
+
+  // Condições de boa arrancada (para detecção de arranque suave)
+  GOOD_START_ENG_MIN: 0.15,   // Engagement mínimo na fricção
+  GOOD_START_ENG_MAX: 0.85,   // Engagement máximo na fricção
+  GOOD_START_ACCEL_MIN: 0.05, // Acelerador mínimo para contar como boa saída
+  GOOD_START_SPEED_MIN: 1.0,  // Velocidade mínima para detectar arrancada (km/h)
+  GOOD_START_SPEED_MAX: 20.0, // Velocidade máxima para detectar arrancada (km/h)
 };
 
 // ============================================================
@@ -275,12 +298,12 @@ function updateSimulation(dt) {
 
     // Verificar estancamento
     if (state.rpm < SIM.STALL_RPM) {
-      triggerStall(clutchSpeed > 1.8 ? 'clutch_fast' : 'low_rpm');
+      triggerStall(clutchSpeed > SIM.CLUTCH_FAST_RELEASE ? 'clutch_fast' : 'low_rpm');
       return;
     }
 
     // Aviso de soltura brusca
-    if (clutchSpeed > 1.5 && engagement > 0.25 && accel < 0.15) {
+    if (clutchSpeed > SIM.CLUTCH_ABUSE_SPEED && engagement > SIM.CLUTCH_ABUSE_MIN_ENG && accel < SIM.LOW_ACCEL_THRESHOLD) {
       state.clutchAbuseCount++;
       feedback.addMessage('⚠️ Soltando a embreagem rápido demais! Vai mais devagar.', 'warning');
     }
@@ -299,7 +322,7 @@ function updateSimulation(dt) {
   //  EMBREAGEM TOTALMENTE SOLTA — MOTOR ACOPLADO
   // ----------------------------------------------------------
   } else if (fullyEngaged) {
-    const targetRPM = wheelRPM + accel * 400;
+    const targetRPM = wheelRPM + accel * SIM.ACCEL_RPM_BOOST;
     _advanceRPM(targetRPM, SIM.RPM_RESPONSE_COUPLED, dt);
 
     // Estancamento por velocidade muito baixa sem aceleração
@@ -314,7 +337,7 @@ function updateSimulation(dt) {
     }
 
     // Força propulsora
-    const effectiveness = Math.min(1, (state.rpm - SIM.IDLE_RPM * 0.4) / 2000);
+    const effectiveness = Math.min(1, (state.rpm - SIM.IDLE_RPM * SIM.IDLE_OFFSET_FACTOR) / SIM.TORQUE_RPM_RANGE);
     const maxSpeed = SIM.GEAR_MAX_SPEED[gear];
     const speedRatio = maxSpeed > 0 ? state.speed / maxSpeed : 0;
     const availAccel = SIM.DRIVE_ACCEL * Math.max(0, 1 - speedRatio * 0.75);
@@ -325,8 +348,7 @@ function updateSimulation(dt) {
     _applyDeceleration(dt, brake);
 
     // Parar sem embreagem → estancar
-    if (state.speed < 1 && brake > 0.3 && clutch < SIM.FRICTION_END * 0.8) {
-      // Aviso preventivo (não estanca imediatamente para dar tempo)
+    if (state.speed < SIM.STALL_STOP_SPEED && brake > SIM.BRAKE_STALL_THRESHOLD && clutch < SIM.FRICTION_END * SIM.CLUTCH_STALL_FACTOR) {
       if (state.speed < 0.5) {
         triggerStall('stop_no_clutch');
         return;
@@ -394,7 +416,13 @@ function _checkGearAdequacy() {
 
 /** Detecta arranque suave e parabeniza o usuário. */
 function _trackGoodStart(engagement, accel, dt) {
-  if (engagement > 0.15 && engagement < 0.85 && accel > 0.05 && state.speed > 1 && state.speed < 20) {
+  if (
+    engagement > SIM.GOOD_START_ENG_MIN &&
+    engagement < SIM.GOOD_START_ENG_MAX &&
+    accel > SIM.GOOD_START_ACCEL_MIN &&
+    state.speed > SIM.GOOD_START_SPEED_MIN &&
+    state.speed < SIM.GOOD_START_SPEED_MAX
+  ) {
     _goodStartTimer += dt;
     _inGoodStart = true;
     if (_goodStartTimer > 2.0 && !_feedbackGoodStart) {
@@ -417,7 +445,6 @@ let _feedbackGoodStart = false;
  */
 function getSuggestedGear() {
   const s = state.speed;
-  if (s < 3) return 1;
   if (s < 22) return 1;
   if (s < 42) return 2;
   if (s < 68) return 3;
